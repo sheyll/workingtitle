@@ -1,97 +1,109 @@
 module Main exposing (..)
 
+import DropDown
 import Browser
-import Html exposing (Html, button, div, text, nav, img, span, a)
-import Html.Events exposing (onClick, onMouseEnter, onMouseLeave)
-import Html.Attributes exposing (class, href, attribute, width, height, src, id)
+import Html exposing (Html, a, div, img, nav, span, text)
+import Html.Attributes exposing (attribute, class, height, href, id, src, width)
+import Html.Events exposing (onClick)
+
 
 type alias Model =
     { language : String
     , isBurgerOpened : Bool
     , isLanguageDropdownOpened : Bool
-    , hoveredLanguage : Maybe String
+    , languageDropDownModel : DropDown.Model
     }
 
+
+main : Program () Model Msg
 main =
-  Browser.sandbox { init = Model "Deutsch" False False Nothing, update = update, view = view }
+    let
+       (selectedItem, dropDownModel) = DropDown.init "Deutsch" [ "English", "Spanisch" ]
+    in Browser.sandbox { init = Model selectedItem False False dropDownModel, update = update, view = view }
 
-type Msg = ToggleBurger | ToggleDropdown | SelectLanguage String | HoverLanguage (Maybe String)
 
+type Msg
+    = ToggleBurger
+    | LanguageDropDownMessage DropDown.Msg
+
+
+update :
+    Msg
+    -> Model
+    -> Model
 update msg model =
-  case msg of
-    ToggleBurger ->
-      { model | isBurgerOpened = not model.isBurgerOpened }
+    case msg of
+        ToggleBurger ->
+            { model | isBurgerOpened = not model.isBurgerOpened }
 
-    ToggleDropdown ->
-      { model | isLanguageDropdownOpened = not model.isLanguageDropdownOpened }
+        LanguageDropDownMessage m ->
+            let
+                (newSelection, newLanguageModel) = DropDown.update m model.languageDropDownModel
+            in
+                { model | languageDropDownModel = newLanguageModel, language = newSelection }
 
-    SelectLanguage language ->
-      { model | language = language }
 
-    HoverLanguage maybeLanguage ->
-      { model | hoveredLanguage = maybeLanguage }
+navbarContent : Model -> List (Html Msg)
+navbarContent model =
+    [ navbarBrand model, navbarMenu model, navbarEnd model]
 
-navbarContent model = [ navbarBrand model, navbarMenu model]
 
+navbarBrand : Model -> Html Msg
 navbarBrand model =
-  div
-    [ class "navbar-brand" ]
-    [ a
-        [ class "navbar-item", href "https://bulma.io" ]
-        [ img 
-            [ src "https://bulma.io/images/bulma-logo.png", width 112, height 28]
-            []
-        ]
-    , a
-        [ class ("navbar-burger burger" ++
-                 (if model.isBurgerOpened then " is-active" else ""))
-        , attribute "data-target" "navbarBasicExample"
-        , onClick ToggleBurger
-        ]
-        [ span [] []
-        , span [] []
-        , span [] []
-        ]
-    ]
-
-dropDownLanguageItem language model =
-  let hovered = case model.hoveredLanguage of
-                       Nothing -> False
-                       Just hlanguage -> hlanguage == language
-      selected = model.language == language
-  in
     div
-      [ class ("navbar-item" ++
-          if      hovered  then " has-background-grey-lighter"
-          else if selected then " has-background-primary"
-          else ""
-        )
-      , onClick (SelectLanguage language)
-      , onMouseEnter (HoverLanguage (Just language))
-      , onMouseLeave (HoverLanguage Nothing)
-      ]
-      [ text language ]
+        [ class "navbar-brand" ]
+        [ a
+            [ class "navbar-item", href "https://bulma.io" ]
+            [ img
+                [ src "https://bulma.io/images/bulma-logo.png", width 112, height 28 ]
+                []
+            ]
+        , a
+            [ class
+                ("navbar-burger burger"
+                    ++ (if model.isBurgerOpened then
+                            " is-active"
 
-navbarMenu model =
-  div
-    [ class ("navbar-menu" ++ (if model.isBurgerOpened then " is-active" else "")), id "navbarBasicExample" ]
-    [ div
-        [ class "navbar-start" ]
-        [ div
-            [ class "navbar-item has-dropdown is-hoverable" ]
-            [ div
-                [ class "navbar-item" ]
-                [ text ("Sprache " ++ model.language ++ " ändern!") ]
-            , div
-                [ class "navbar-dropdown" ]
-                [ dropDownLanguageItem "Deutsch" model
-                , dropDownLanguageItem "English" model
-                ]
+                        else
+                            ""
+                       )
+                )
+            , attribute "data-target" "navbarBasicExample"
+            , onClick ToggleBurger
+            ]
+            [ span [] []
+            , span [] []
+            , span [] []
             ]
         ]
-    ]
 
+
+navbarMenu : Model -> Html Msg
+navbarMenu model =
+    div
+        [ class
+            ("navbar-menu"
+                ++ (if model.isBurgerOpened then
+                        " is-active"
+
+                    else
+                        ""
+                   )
+            )
+        , id "navbarBasicExample"
+        ]
+        [ div
+            [ class "navbar-start" ]
+            [ DropDown.view LanguageDropDownMessage model.languageDropDownModel
+            ]
+        ]
+
+navbarEnd : { a | language : String } -> Html msg
+navbarEnd model = div [class "navbar-end"] [div [class "navbar-item"] [text model.language]]
+
+view : Model -> Html Msg
 view model =
-  nav
-    [ class "navbar" ]
-    (navbarContent model)
+    nav
+        [ class "navbar has-background-primary" ]
+        (navbarContent model)
+
